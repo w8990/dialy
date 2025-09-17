@@ -1,0 +1,617 @@
+<template>
+  <view class="post-detail-page">
+    <scroll-view class="content" scroll-y="true">
+      <!-- 动态内容 -->
+      <view class="post-content" v-if="postData">
+        <view class="user-info">
+          <image class="avatar" :src="postData.user.avatar" />
+          <view class="user-details">
+            <text class="nickname">{{ postData.user.nickname }}</text>
+            <text class="post-time">{{ postData.createdAt }}</text>
+          </view>
+          <view class="more-btn" @tap="showMoreOptions">⋯</view>
+        </view>
+        
+        <text class="content-text" v-if="postData.content">{{ postData.content }}</text>
+        
+        <!-- 媒体内容 -->
+        <view class="media-content" v-if="postData.media && postData.media.length > 0">
+          <view class="media-grid">
+            <image 
+              v-for="(media, index) in postData.media"
+              :key="index"
+              :src="media.url"
+              class="media-item"
+              @tap="previewMedia(index)"
+            />
+          </view>
+        </view>
+        
+        <!-- 话题标签 -->
+        <view class="topics" v-if="postData.topics && postData.topics.length > 0">
+          <text 
+            class="topic-tag" 
+            v-for="topic in postData.topics" 
+            :key="topic"
+            @tap="goToTopic(topic)"
+          >
+            #{{ topic }}
+          </text>
+        </view>
+        
+        <!-- 位置信息 -->
+        <view class="location" v-if="postData.location">
+          <text class="location-icon">📍</text>
+          <text class="location-text">{{ postData.location.name }}</text>
+        </view>
+        
+        <!-- 互动按钮 -->
+        <view class="actions">
+          <view class="action-btn" @tap="toggleLike">
+            <text class="action-icon" :class="{ active: postData.isLiked }">❤️</text>
+            <text class="action-text">{{ postData.likeCount || 0 }}</text>
+          </view>
+          <view class="action-btn" @tap="focusCommentInput">
+            <text class="action-icon">💬</text>
+            <text class="action-text">{{ postData.commentCount || 0 }}</text>
+          </view>
+          <view class="action-btn" @tap="sharePost">
+            <text class="action-icon">📤</text>
+            <text class="action-text">分享</text>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 评论列表 -->
+      <view class="comments-section">
+        <view class="section-title">
+          <text class="title-text">评论 {{ comments.length }}</text>
+        </view>
+        
+        <view class="comment-list">
+          <view class="comment-item" v-for="comment in comments" :key="comment.id">
+            <image class="comment-avatar" :src="comment.user.avatar" />
+            <view class="comment-content">
+              <text class="comment-user">{{ comment.user.nickname }}</text>
+              <text class="comment-text">{{ comment.content }}</text>
+              <view class="comment-actions">
+                <text class="comment-time">{{ comment.createdAt }}</text>
+                <text class="comment-reply" @tap="replyToComment(comment)">回复</text>
+              </view>
+              
+              <!-- 回复列表 -->
+              <view class="replies" v-if="comment.replies && comment.replies.length > 0">
+                <view class="reply-item" v-for="reply in comment.replies" :key="reply.id">
+                  <text class="reply-user">{{ reply.user.nickname }}</text>
+                  <text class="reply-text">{{ reply.content }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 空状态 -->
+        <view class="empty-comments" v-if="comments.length === 0">
+          <text class="empty-text">暂无评论，快来抢沙发吧！</text>
+        </view>
+      </view>
+    </scroll-view>
+    
+    <!-- 评论输入框 -->
+    <view class="comment-input-section">
+      <view class="input-container">
+        <input 
+          class="comment-input" 
+          v-model="commentText"
+          placeholder="说点什么..."
+          :focus="inputFocused"
+          @blur="inputFocused = false"
+        />
+        <view class="send-btn" @tap="sendComment" :class="{ active: commentText.trim() }">
+          <text class="send-text">发送</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { ref, onMounted } from 'vue'
+
+// 动态数据
+const postData = ref<any>(null)
+
+// 评论相关
+const comments = ref<any[]>([])
+const commentText = ref('')
+const inputFocused = ref(false)
+
+// 回复相关
+const replyToUser = ref<any>(null)
+
+onMounted(() => {
+  loadPostDetail()
+  loadComments()
+})
+
+// 加载动态详情
+function loadPostDetail() {
+  // TODO: 从路由参数获取postId并调用API
+  // 模拟数据
+  postData.value = {
+    id: 'post123',
+    content: '今天天气真不错，和朋友一起去公园拍照了！分享几张美照给大家看看。',
+    user: {
+      uid: 'user123',
+      nickname: '摄影爱好者',
+      avatar: '/static/default-avatar.png'
+    },
+    media: [
+      { type: 'image', url: '/static/demo-image1.jpg' },
+      { type: 'image', url: '/static/demo-image2.jpg' }
+    ],
+    topics: ['摄影', '生活'],
+    location: {
+      name: '中央公园'
+    },
+    likeCount: 25,
+    commentCount: 8,
+    isLiked: false,
+    createdAt: '2小时前'
+  }
+}
+
+// 加载评论列表
+function loadComments() {
+  // TODO: 调用API获取评论
+  comments.value = [
+    {
+      id: 'comment1',
+      content: '拍得真好看！',
+      user: {
+        nickname: '小明',
+        avatar: '/static/default-avatar.png'
+      },
+      createdAt: '1小时前',
+      replies: [
+        {
+          id: 'reply1',
+          content: '谢谢夸奖！',
+          user: {
+            nickname: '摄影爱好者',
+            avatar: '/static/default-avatar.png'
+          }
+        }
+      ]
+    },
+    {
+      id: 'comment2',
+      content: '这个角度很棒，请问是用什么相机拍的？',
+      user: {
+        nickname: '小红',
+        avatar: '/static/default-avatar.png'
+      },
+      createdAt: '30分钟前'
+    }
+  ]
+}
+
+// 切换点赞状态
+function toggleLike() {
+  if (!postData.value) return
+  
+  postData.value.isLiked = !postData.value.isLiked
+  if (postData.value.isLiked) {
+    postData.value.likeCount++
+  } else {
+    postData.value.likeCount--
+  }
+  
+  // TODO: 调用点赞API
+}
+
+// 聚焦评论输入框
+function focusCommentInput() {
+  inputFocused.value = true
+}
+
+// 发送评论
+function sendComment() {
+  if (!commentText.value.trim()) {
+    return
+  }
+  
+  // TODO: 调用发送评论API
+  const newComment = {
+    id: 'comment' + Date.now(),
+    content: commentText.value,
+    user: {
+      nickname: '当前用户',
+      avatar: '/static/default-avatar.png'
+    },
+    createdAt: '刚刚'
+  }
+  
+  comments.value.unshift(newComment)
+  commentText.value = ''
+  inputFocused.value = false
+  
+  // 更新评论数
+  if (postData.value) {
+    postData.value.commentCount++
+  }
+  
+  uni.showToast({
+    title: '评论成功',
+    icon: 'success'
+  })
+}
+
+// 回复评论
+function replyToComment(comment: any) {
+  replyToUser.value = comment.user
+  commentText.value = `回复 @${comment.user.nickname}: `
+  inputFocused.value = true
+}
+
+// 预览媒体
+function previewMedia(index: number) {
+  if (!postData.value?.media) return
+  
+  const urls = postData.value.media.map((media: any) => media.url)
+  uni.previewImage({
+    urls: urls,
+    current: index
+  })
+}
+
+// 跳转到话题页面
+function goToTopic(topic: string) {
+  uni.navigateTo({
+    url: `/pages/topic/detail/detail?name=${topic}`
+  })
+}
+
+// 分享动态
+function sharePost() {
+  uni.showActionSheet({
+    itemList: ['分享到微信', '复制链接'],
+    success: (res) => {
+      if (res.tapIndex === 0) {
+        // 分享到微信
+      } else if (res.tapIndex === 1) {
+        // 复制链接
+        uni.setClipboardData({
+          data: `动态链接: post/${postData.value?.id}`,
+          success: () => {
+            uni.showToast({
+              title: '链接已复制',
+              icon: 'success'
+            })
+          }
+        })
+      }
+    }
+  })
+}
+
+// 显示更多选项
+function showMoreOptions() {
+  const options = ['举报', '拉黑用户']
+  
+  uni.showActionSheet({
+    itemList: options,
+    success: (res) => {
+      if (res.tapIndex === 0) {
+        // 举报
+        reportPost()
+      } else if (res.tapIndex === 1) {
+        // 拉黑用户
+        blockUser()
+      }
+    }
+  })
+}
+
+// 举报动态
+function reportPost() {
+  uni.showModal({
+    title: '举报',
+    content: '确定要举报这条动态吗？',
+    success: (res) => {
+      if (res.confirm) {
+        // TODO: 调用举报API
+        uni.showToast({
+          title: '举报成功',
+          icon: 'success'
+        })
+      }
+    }
+  })
+}
+
+// 拉黑用户
+function blockUser() {
+  uni.showModal({
+    title: '拉黑用户',
+    content: '确定要拉黑这个用户吗？',
+    success: (res) => {
+      if (res.confirm) {
+        // TODO: 调用拉黑API
+        uni.showToast({
+          title: '已拉黑该用户',
+          icon: 'success'
+        })
+      }
+    }
+  })
+}
+</script>
+
+<style scoped>
+.post-detail-page {
+  flex: 1;
+  background-color: #f5f5f5;
+}
+
+.content {
+  flex: 1;
+  margin-bottom: 60px;
+}
+
+.post-content {
+  background-color: #ffffff;
+  padding: 16px;
+  margin-bottom: 10px;
+}
+
+.user-info {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 10px;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+}
+
+.user-details {
+  flex: 1;
+}
+
+.nickname {
+  font-size: 14px;
+  font-weight: bold;
+  color: #333333;
+}
+
+.post-time {
+  font-size: 12px;
+  color: #999999;
+  margin-top: 2px;
+}
+
+.more-btn {
+  padding: 4px 8px;
+  color: #999999;
+}
+
+.content-text {
+  font-size: 16px;
+  line-height: 1.5;
+  color: #333333;
+  margin-bottom: 12px;
+}
+
+.media-content {
+  margin-bottom: 12px;
+}
+
+.media-grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.media-item {
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+}
+
+.topics {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.topic-tag {
+  color: #007AFF;
+  font-size: 14px;
+}
+
+.location {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.location-icon {
+  font-size: 12px;
+}
+
+.location-text {
+  font-size: 12px;
+  color: #666666;
+}
+
+.actions {
+  flex-direction: row;
+  justify-content: space-around;
+  padding: 12px 0;
+  border-top: 1px solid #f5f5f5;
+}
+
+.action-btn {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+}
+
+.action-icon {
+  font-size: 16px;
+  color: #666666;
+}
+
+.action-icon.active {
+  color: #ff4444;
+}
+
+.action-text {
+  font-size: 12px;
+  color: #666666;
+}
+
+.comments-section {
+  background-color: #ffffff;
+  padding: 16px;
+}
+
+.section-title {
+  margin-bottom: 16px;
+}
+
+.title-text {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333333;
+}
+
+.comment-list {
+  gap: 16px;
+}
+
+.comment-item {
+  flex-direction: row;
+  gap: 10px;
+}
+
+.comment-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+}
+
+.comment-content {
+  flex: 1;
+}
+
+.comment-user {
+  font-size: 12px;
+  font-weight: bold;
+  color: #333333;
+  margin-bottom: 4px;
+}
+
+.comment-text {
+  font-size: 14px;
+  color: #333333;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.comment-actions {
+  flex-direction: row;
+  gap: 16px;
+}
+
+.comment-time {
+  font-size: 12px;
+  color: #999999;
+}
+
+.comment-reply {
+  font-size: 12px;
+  color: #007AFF;
+}
+
+.replies {
+  margin-top: 8px;
+  padding-left: 12px;
+  border-left: 2px solid #f5f5f5;
+  gap: 4px;
+}
+
+.reply-item {
+  flex-direction: row;
+  gap: 4px;
+}
+
+.reply-user {
+  font-size: 12px;
+  color: #007AFF;
+}
+
+.reply-text {
+  flex: 1;
+  font-size: 12px;
+  color: #666666;
+}
+
+.empty-comments {
+  align-items: center;
+  padding: 40px 0;
+}
+
+.empty-text {
+  font-size: 14px;
+  color: #999999;
+}
+
+.comment-input-section {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: #ffffff;
+  border-top: 1px solid #eeeeee;
+  padding: 8px 16px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+}
+
+.input-container {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.comment-input {
+  flex: 1;
+  background-color: #f8f8f8;
+  border-radius: 20px;
+  padding: 10px 16px;
+  font-size: 14px;
+  max-height: 80px;
+}
+
+.send-btn {
+  padding: 8px 16px;
+  border-radius: 20px;
+  background-color: #cccccc;
+}
+
+.send-btn.active {
+  background-color: #007AFF;
+}
+
+.send-text {
+  font-size: 14px;
+  color: #ffffff;
+}
+</style>

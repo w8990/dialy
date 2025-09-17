@@ -1,36 +1,560 @@
 <template>
-	<view>
-		<image class="logo" src="/static/logo.png"></image>
-		<text class="title">{{title}}</text>
-	</view>
+  <view class="index-page">
+    <!-- 自定义导航栏 -->
+    <view class="navbar">
+      <text class="nav-title">广场</text>
+      <view class="nav-tabs">
+        <text 
+          class="tab-item" 
+          :class="{ active: currentTab === 'recommend' }"
+          @tap="switchTab('recommend')"
+        >
+          推荐
+        </text>
+        <text 
+          class="tab-item" 
+          :class="{ active: currentTab === 'latest' }"
+          @tap="switchTab('latest')"
+        >
+          最新
+        </text>
+      </view>
+    </view>
+    
+    <!-- 动态列表 -->
+    <scroll-view 
+      class="content" 
+      scroll-y="true"
+      @scrolltolower="loadMorePosts"
+      refresher-enabled="true"
+      @refresherrefresh="refreshPosts"
+      :refresher-triggered="isRefreshing"
+    >
+      <view class="post-list">
+        <view 
+          class="post-item" 
+          v-for="post in postList" 
+          :key="post.id"
+          @tap="goToPostDetail(post.id)"
+        >
+          <!-- 用户信息 -->
+          <view class="user-info">
+            <image class="avatar" :src="post.user.avatar" @tap.stop="goToUserProfile(post.user.uid)" />
+            <view class="user-details">
+              <text class="nickname">{{ post.user.nickname }}</text>
+              <text class="post-time">{{ post.createdAt }}</text>
+            </view>
+            <view class="follow-btn" @tap.stop="toggleFollow(post.user)" v-if="!post.user.isFollowing">
+              <text class="follow-text">关注</text>
+            </view>
+          </view>
+          
+          <!-- 动态内容 -->
+          <text class="content-text" v-if="post.content">{{ post.content }}</text>
+          
+          <!-- 媒体内容 -->
+          <view class="media-content" v-if="post.media && post.media.length > 0">
+            <image 
+              v-for="(media, index) in post.media.slice(0, 9)"
+              :key="index"
+              :src="media.url"
+              class="media-item"
+              :class="`media-${Math.min(post.media.length, 9)}`"
+              @tap.stop="previewMedia(post.media, index)"
+            />
+          </view>
+          
+          <!-- 话题标签 -->
+          <view class="topics" v-if="post.topics && post.topics.length > 0">
+            <text 
+              class="topic-tag" 
+              v-for="topic in post.topics" 
+              :key="topic"
+              @tap.stop="goToTopic(topic)"
+            >
+              #{{ topic }}
+            </text>
+          </view>
+          
+          <!-- 位置信息 -->
+          <view class="location" v-if="post.location">
+            <text class="location-icon">📍</text>
+            <text class="location-text">{{ post.location.name }}</text>
+          </view>
+          
+          <!-- 互动按钮 -->
+          <view class="actions">
+            <view class="action-btn" @tap.stop="toggleLike(post)">
+              <text class="action-icon" :class="{ active: post.isLiked }">❤️</text>
+              <text class="action-text">{{ post.likeCount || 0 }}</text>
+            </view>
+            <view class="action-btn" @tap.stop="goToPostDetail(post.id)">
+              <text class="action-icon">💬</text>
+              <text class="action-text">{{ post.commentCount || 0 }}</text>
+            </view>
+            <view class="action-btn" @tap.stop="sharePost(post)">
+              <text class="action-icon">📤</text>
+              <text class="action-text">分享</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 加载更多 -->
+      <view class="load-more" v-if="hasMore">
+        <text class="load-text">{{ isLoading ? '加载中...' : '上拉加载更多' }}</text>
+      </view>
+      
+      <!-- 没有更多 -->
+      <view class="no-more" v-if="!hasMore && postList.length > 0">
+        <text class="no-more-text">没有更多内容了</text>
+      </view>
+      
+      <!-- 空状态 -->
+      <view class="empty-state" v-if="postList.length === 0 && !isLoading">
+        <text class="empty-text">暂无动态</text>
+        <text class="empty-hint">快去发布第一条动态吧！</text>
+      </view>
+    </scroll-view>
+  </view>
 </template>
 
-<script>
-	export default {
-		data() {
-			return {
-				title: 'Hello'
-			}
-		},
-		onLoad() {
+<script setup lang="uts">
+import { ref, onMounted } from 'vue'
+import { Auth } from '../../utils/auth.uts'
 
-		},
-		methods: {
+// 当前标签
+const currentTab = ref('recommend')
 
-		}
-	}
+// 动态列表
+const postList = ref<any[]>([])
+
+// 分页相关
+const currentPage = ref(1)
+const hasMore = ref(true)
+const isLoading = ref(false)
+const isRefreshing = ref(false)
+
+onMounted(() => {
+  checkLoginStatus()
+  loadPosts()
+})
+
+// 检查登录状态
+function checkLoginStatus() {
+  if (!Auth.isLoggedIn()) {
+    uni.reLaunch({
+      url: '/pages/auth/login/login'
+    })
+  }
+}
+
+// 切换标签
+function switchTab(tab: string) {
+  if (currentTab.value === tab) return
+  
+  currentTab.value = tab
+  currentPage.value = 1
+  postList.value = []
+  hasMore.value = true
+  loadPosts()
+}
+
+// 加载动态列表
+async function loadPosts(isRefresh: boolean = false) {
+  if (isLoading.value && !isRefresh) return
+  
+  isLoading.value = true
+  if (isRefresh) {
+    isRefreshing.value = true
+  }
+  
+  try {
+    // TODO: 调用API获取动态列表
+    // 模拟数据
+    const mockPosts = [
+      {
+        id: 'post1',
+        content: '今天天气真不错，和朋友一起去公园拍照了！📷',
+        user: {
+          uid: 'user1',
+          nickname: '摄影爱好者',
+          avatar: '/static/default-avatar.png',
+          isFollowing: false
+        },
+        media: [
+          { type: 'image', url: '/static/demo-image1.jpg' },
+          { type: 'image', url: '/static/demo-image2.jpg' }
+        ],
+        topics: ['摄影', '生活'],
+        location: {
+          name: '中央公园'
+        },
+        likeCount: 25,
+        commentCount: 8,
+        isLiked: false,
+        createdAt: '2小时前'
+      },
+      {
+        id: 'post2',
+        content: '分享一道今天做的美食，色香味俱全！🍝',
+        user: {
+          uid: 'user2',
+          nickname: '美食达人',
+          avatar: '/static/default-avatar.png',
+          isFollowing: true
+        },
+        media: [
+          { type: 'image', url: '/static/demo-food.jpg' }
+        ],
+        topics: ['美食', '生活'],
+        likeCount: 42,
+        commentCount: 15,
+        isLiked: true,
+        createdAt: '4小时前'
+      }
+    ]
+    
+    setTimeout(() => {
+      if (isRefresh) {
+        postList.value = mockPosts
+        currentPage.value = 1
+      } else {
+        postList.value.push(...mockPosts)
+      }
+      
+      isLoading.value = false
+      isRefreshing.value = false
+      
+      // 模拟分页
+      if (currentPage.value >= 3) {
+        hasMore.value = false
+      }
+    }, 1000)
+    
+  } catch (error) {
+    console.error('加载动态失败:', error)
+    isLoading.value = false
+    isRefreshing.value = false
+    
+    uni.showToast({
+      title: '加载失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 刷新动态
+function refreshPosts() {
+  loadPosts(true)
+}
+
+// 加载更多动态
+function loadMorePosts() {
+  if (hasMore.value && !isLoading.value) {
+    currentPage.value++
+    loadPosts()
+  }
+}
+
+// 切换点赞状态
+function toggleLike(post: any) {
+  post.isLiked = !post.isLiked
+  if (post.isLiked) {
+    post.likeCount++
+  } else {
+    post.likeCount--
+  }
+  
+  // TODO: 调用点赞API
+  console.log('切换点赞:', post.id, post.isLiked)
+}
+
+// 切换关注状态
+function toggleFollow(user: any) {
+  user.isFollowing = !user.isFollowing
+  
+  // TODO: 调用关注API
+  console.log('切换关注:', user.uid, user.isFollowing)
+  
+  uni.showToast({
+    title: user.isFollowing ? '关注成功' : '取消关注',
+    icon: 'success'
+  })
+}
+
+// 预览媒体
+function previewMedia(mediaList: any[], index: number) {
+  const urls = mediaList.map(media => media.url)
+  uni.previewImage({
+    urls: urls,
+    current: index
+  })
+}
+
+// 跳转到动态详情
+function goToPostDetail(postId: string) {
+  uni.navigateTo({
+    url: `/pages/post/detail/detail?id=${postId}`
+  })
+}
+
+// 跳转到用户主页
+function goToUserProfile(uid: string) {
+  uni.navigateTo({
+    url: `/pages/user/profile/profile?uid=${uid}`
+  })
+}
+
+// 跳转到话题页面
+function goToTopic(topic: string) {
+  uni.navigateTo({
+    url: `/pages/topic/detail/detail?name=${topic}`
+  })
+}
+
+// 分享动态
+function sharePost(post: any) {
+  uni.showActionSheet({
+    itemList: ['分享到微信', '复制链接'],
+    success: (res) => {
+      if (res.tapIndex === 0) {
+        // 分享到微信
+        console.log('分享到微信:', post.id)
+      } else if (res.tapIndex === 1) {
+        // 复制链接
+        uni.setClipboardData({
+          data: `动态链接: post/${post.id}`,
+          success: () => {
+            uni.showToast({
+              title: '链接已复制',
+              icon: 'success'
+            })
+          }
+        })
+      }
+    }
+  })
+}
 </script>
 
-<style>
-	.logo {
-		height: 100px;
-		width: 100px;
-		margin: 100px auto 25px auto;
-	}
+<style scoped>
+.index-page {
+  flex: 1;
+  background-color: #f5f5f5;
+}
 
-	.title {
-		font-size: 18px;
-		color: #8f8f94;
-    text-align: center;
-	}
+.navbar {
+  background-color: #ffffff;
+  padding: 44px 20px 16px;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.nav-title {
+  font-size: 20px;
+  font-weight: bold;
+  color: #333333;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.nav-tabs {
+  flex-direction: row;
+  justify-content: center;
+  gap: 40px;
+}
+
+.tab-item {
+  font-size: 16px;
+  color: #999999;
+  padding: 8px 0;
+}
+
+.tab-item.active {
+  color: #007AFF;
+  font-weight: bold;
+  border-bottom: 2px solid #007AFF;
+}
+
+.content {
+  flex: 1;
+}
+
+.post-list {
+  gap: 10px;
+}
+
+.post-item {
+  background-color: #ffffff;
+  padding: 16px;
+}
+
+.post-item:active {
+  background-color: #f8f8f8;
+}
+
+.user-info {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+}
+
+.user-details {
+  flex: 1;
+}
+
+.nickname {
+  font-size: 14px;
+  font-weight: bold;
+  color: #333333;
+}
+
+.post-time {
+  font-size: 12px;
+  color: #999999;
+  margin-top: 2px;
+}
+
+.follow-btn {
+  background-color: #007AFF;
+  border-radius: 12px;
+  padding: 6px 12px;
+}
+
+.follow-text {
+  font-size: 12px;
+  color: #ffffff;
+}
+
+.content-text {
+  font-size: 15px;
+  line-height: 1.4;
+  color: #333333;
+  margin-bottom: 12px;
+}
+
+.media-content {
+  margin-bottom: 12px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.media-item {
+  border-radius: 8px;
+}
+
+.media-1 {
+  width: 200px;
+  height: 200px;
+}
+
+.media-2 {
+  width: calc(50% - 2px);
+  height: 120px;
+}
+
+.media-3, .media-4, .media-5, .media-6, .media-7, .media-8, .media-9 {
+  width: calc(33.33% - 3px);
+  height: 100px;
+}
+
+.topics {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.topic-tag {
+  color: #007AFF;
+  font-size: 14px;
+}
+
+.location {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.location-icon {
+  font-size: 12px;
+}
+
+.location-text {
+  font-size: 12px;
+  color: #666666;
+}
+
+.actions {
+  flex-direction: row;
+  justify-content: space-around;
+  padding: 8px 0;
+  border-top: 1px solid #f5f5f5;
+}
+
+.action-btn {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+}
+
+.action-icon {
+  font-size: 16px;
+  color: #666666;
+}
+
+.action-icon.active {
+  color: #ff4444;
+}
+
+.action-text {
+  font-size: 12px;
+  color: #666666;
+}
+
+.load-more {
+  align-items: center;
+  padding: 20px;
+}
+
+.load-text {
+  font-size: 14px;
+  color: #999999;
+}
+
+.no-more {
+  align-items: center;
+  padding: 20px;
+}
+
+.no-more-text {
+  font-size: 14px;
+  color: #cccccc;
+}
+
+.empty-state {
+  align-items: center;
+  padding: 60px 20px;
+  gap: 10px;
+}
+
+.empty-text {
+  font-size: 18px;
+  color: #999999;
+}
+
+.empty-hint {
+  font-size: 14px;
+  color: #cccccc;
+}
 </style>

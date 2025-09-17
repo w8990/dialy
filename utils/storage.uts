@@ -1,0 +1,105 @@
+// 本地存储工具类
+
+import { STORAGE_KEYS } from './constants.uts'
+
+export class Storage {
+  
+  // 设置字符串值
+  static setString(key: string, value: string): void {
+    uni.setStorageSync(key, value)
+  }
+  
+  // 获取字符串值
+  static getString(key: string, defaultValue: string = ''): string {
+    try {
+      const value = uni.getStorageSync(key)
+      return value !== null && value !== undefined ? value.toString() : defaultValue
+    } catch (error) {
+      console.error('Storage getString error:', error)
+      return defaultValue
+    }
+  }
+  
+  // 设置对象值
+  static setObject(key: string, value: any): void {
+    try {
+      uni.setStorageSync(key, JSON.stringify(value))
+    } catch (error) {
+      console.error('Storage setObject error:', error)
+    }
+  }
+  
+  // 获取对象值
+  static getObject<T>(key: string, defaultValue: T | null = null): T | null {
+    try {
+      const value = uni.getStorageSync(key)
+      if (value) {
+        return JSON.parse(value) as T
+      }
+      return defaultValue
+    } catch (error) {
+      console.error('Storage getObject error:', error)
+      return defaultValue
+    }
+  }
+  
+  // 删除存储项
+  static remove(key: string): void {
+    try {
+      uni.removeStorageSync(key)
+    } catch (error) {
+      console.error('Storage remove error:', error)
+    }
+  }
+  
+  // 清空所有存储
+  static clear(): void {
+    try {
+      uni.clearStorageSync()
+    } catch (error) {
+      console.error('Storage clear error:', error)
+    }
+  }
+  
+  // Token 相关方法
+  static setAccessToken(token: string): void {
+    this.setString(STORAGE_KEYS.ACCESS_TOKEN, token)
+  }
+  
+  static getAccessToken(): string {
+    return this.getString(STORAGE_KEYS.ACCESS_TOKEN)
+  }
+  
+  static setRefreshToken(token: string): void {
+    this.setString(STORAGE_KEYS.REFRESH_TOKEN, token)
+  }
+  
+  static getRefreshToken(): string {
+    return this.getString(STORAGE_KEYS.REFRESH_TOKEN)
+  }
+  
+  // 用户信息相关方法
+  static setUserInfo(userInfo: any): void {
+    this.setObject(STORAGE_KEYS.USER_INFO, userInfo)
+  }
+  
+  static getUserInfo(): any {
+    return this.getObject(STORAGE_KEYS.USER_INFO)
+  }
+  
+  // 设备ID相关方法
+  static setDeviceId(deviceId: string): void {
+    this.setString(STORAGE_KEYS.DEVICE_ID, deviceId)
+  }
+  
+  static getDeviceId(): string {
+    return this.getString(STORAGE_KEYS.DEVICE_ID)
+  }
+  
+  // 清除用户相关数据
+  static clearUserData(): void {
+    this.remove(STORAGE_KEYS.ACCESS_TOKEN)
+    this.remove(STORAGE_KEYS.REFRESH_TOKEN)
+    this.remove(STORAGE_KEYS.USER_INFO)
+  }
+}

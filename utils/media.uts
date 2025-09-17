@@ -1,0 +1,274 @@
+// 媒体处理工具类
+
+import { MEDIA_LIMITS, MEDIA_TYPE } from './constants.uts'
+import { Request } from './request.uts'
+
+// 媒体文件接口
+interface MediaFile {
+  type: string
+  url: string
+  size?: number
+  duration?: number
+  width?: number
+  height?: number
+  cover?: string
+}
+
+export class Media {
+  
+  // 选择图片
+  static chooseImage(count: number = 9): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+      uni.chooseImage({
+        count: count,
+        sizeType: ['original', 'compressed'],
+        sourceType: ['camera', 'album'],
+        success: (res) => {
+          const tempFiles = res.tempFiles
+          
+          // 检查文件大小
+          const validFiles: string[] = []
+          for (let file of tempFiles) {
+            if (file.size <= MEDIA_LIMITS.IMAGE_MAX_SIZE) {
+              validFiles.push(file.path)
+            } else {
+              uni.showToast({
+                title: '图片大小不能超过5MB',
+                icon: 'none'
+              })
+            }
+          }
+          
+          resolve(validFiles)
+        },
+        fail: (error) => {
+          reject(error)
+        }
+      })
+    })
+  }
+  
+  // 选择视频
+  static chooseVideo(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      uni.chooseVideo({
+        sourceType: ['camera', 'album'],
+        maxDuration: MEDIA_LIMITS.VIDEO_MAX_DURATION,
+        camera: 'back',
+        success: (res) => {
+          if (res.size <= MEDIA_LIMITS.VIDEO_MAX_SIZE) {
+            resolve(res.tempFilePath)
+          } else {
+            uni.showToast({
+              title: '视频大小不能超过100MB',
+              icon: 'none'
+            })
+            reject(new Error('视频文件过大'))
+          }
+        },
+        fail: (error) => {
+          reject(error)
+        }
+      })
+    })
+  }
+  
+  // 开始录音
+  static startRecord(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const recorderManager = uni.getRecorderManager()
+      
+      recorderManager.start({
+        duration: MEDIA_LIMITS.AUDIO_MAX_DURATION * 1000,
+        sampleRate: 44100,
+        numberOfChannels: 1,
+        encodeBitRate: 192000,
+        format: 'aac'
+      })
+      
+      recorderManager.onStart(() => {
+        resolve()
+      })
+      
+      recorderManager.onError((error) => {
+        reject(error)
+      })
+    })
+  }
+  
+  // 停止录音
+  static stopRecord(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const recorderManager = uni.getRecorderManager()
+      
+      recorderManager.onStop((res) => {
+        if (res.tempFilePath) {
+          resolve(res.tempFilePath)
+        } else {
+          reject(new Error('录音失败'))
+        }
+      })
+      
+      recorderManager.stop()
+    })
+  }
+  
+  // 上传单个文件
+  static async uploadFile(filePath: string, type: string): Promise<MediaFile> {
+    try {
+      Request.showLoading('上传中...')
+      
+      const response = await Request.uploadFile({
+        url: '/upload/file',
+        filePath: filePath,
+        name: 'file',
+        formData: {
+          type: type
+        }
+      })
+      
+      Request.hideLoading()
+      
+      if (response.code === 0) {
+        return {
+          type: type,
+          url: response.data.url,
+          size: response.data.size,
+          duration: response.data.duration,
+          width: response.data.width,
+          height: response.data.height,
+          cover: response.data.cover
+        }
+      } else {
+        throw new Error(response.message)
+      }
+    } catch (error) {
+      Request.hideLoading()
+      throw error
+    }
+  }
+  
+  // 批量上传图片
+  static async uploadImages(filePaths: string[]): Promise<MediaFile[]> {
+    const results: MediaFile[] = []
+    
+    for (let filePath of filePaths) {
+      try {
+        const mediaFile = await this.uploadFile(filePath, MEDIA_TYPE.IMAGE)
+        results.push(mediaFile)
+      } catch (error) {
+        console.error('Upload image error:', error)
+        throw error
+      }
+    }
+    
+    return results
+  }
+  
+  // 上传视频
+  static async uploadVideo(filePath: string): Promise<MediaFile> {
+    return await this.uploadFile(filePath, MEDIA_TYPE.VIDEO)
+  }
+  
+  // 上传音频
+  static async uploadAudio(filePath: string): Promise<MediaFile> {
+    return await this.uploadFile(filePath, MEDIA_TYPE.AUDIO)
+  }
+  
+  // 预览图片
+  static previewImage(urls: string[], current: number = 0): void {
+    uni.previewImage({
+      urls: urls,
+      current: current
+    })
+  }
+  
+  // 播放视频
+  static playVideo(url: string): void {
+    // 跳转到视频播放页面或使用内置播放器
+    // 这里可以根据需要自定义实现
+  }
+  
+  // 播放音频
+  static playAudio(url: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const audioContext = uni.createInnerAudioContext()
+      
+      audioContext.src = url
+      audioContext.autoplay = true
+      
+      audioContext.onPlay(() => {
+        resolve()
+      })
+      
+      audioContext.onError((error) => {
+        reject(error)
+      })
+      
+      audioContext.onEnded(() => {
+        audioContext.destroy()
+      })
+    })
+  }
+  
+  // 获取图片信息
+  static getImageInfo(src: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      uni.getImageInfo({
+        src: src,
+        success: (res) => {
+          resolve(res)
+        },
+        fail: (error) => {
+          reject(error)
+        }
+      })
+    })
+  }
+  
+  // 压缩图片
+  static compressImage(src: string, quality: number = 0.8): Promise<string> {
+    return new Promise((resolve, reject) => {
+      uni.compressImage({
+        src: src,
+        quality: quality,
+        success: (res) => {
+          resolve(res.tempFilePath)
+        },
+        fail: (error) => {
+          reject(error)
+        }
+      })
+    })
+  }
+  
+  // 获取文件信息
+  static getFileInfo(filePath: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      uni.getFileInfo({
+        filePath: filePath,
+        success: (res) => {
+          resolve(res)
+        },
+        fail: (error) => {
+          reject(error)
+        }
+      })
+    })
+  }
+  
+  // 检查文件类型
+  static checkFileType(filePath: string): string {
+    const ext = filePath.split('.').pop()?.toLowerCase()
+    
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) {
+      return MEDIA_TYPE.IMAGE
+    } else if (['mp4', 'avi', 'mov', '3gp'].includes(ext || '')) {
+      return MEDIA_TYPE.VIDEO
+    } else if (['mp3', 'aac', 'wav', 'm4a'].includes(ext || '')) {
+      return MEDIA_TYPE.AUDIO
+    }
+    
+    return 'unknown'
+  }
+}

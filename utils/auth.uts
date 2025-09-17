@@ -1,0 +1,200 @@
+// 认证工具类
+
+import { Storage } from './storage.uts'
+import { Request } from './request.uts'
+
+// 用户信息接口
+interface UserInfo {
+  uid: string
+  nickname: string
+  avatar: string
+  phone: string
+  gender: number
+  signature?: string
+  interests: string[]
+}
+
+// 登录响应接口
+interface LoginResponse {
+  accessToken: string
+  refreshToken: string
+  userInfo: UserInfo
+}
+
+export class Auth {
+  
+  // 检查是否已登录
+  static isLoggedIn(): boolean {
+    const token = Storage.getAccessToken()
+    const userInfo = Storage.getUserInfo()
+    return !!(token && userInfo)
+  }
+  
+  // 获取当前用户信息
+  static getCurrentUser(): UserInfo | null {
+    return Storage.getUserInfo()
+  }
+  
+  // 短信登录
+  static async loginWithSms(phone: string, code: string): Promise<UserInfo> {
+    try {
+      const response = await Request.post<LoginResponse>('/auth/login-sms', {
+        phone: phone,
+        code: code
+      }, { needAuth: false })
+      
+      if (response.code === 0) {
+        // 保存登录信息
+        Storage.setAccessToken(response.data.accessToken)
+        Storage.setRefreshToken(response.data.refreshToken)
+        Storage.setUserInfo(response.data.userInfo)
+        
+        return response.data.userInfo
+      } else {
+        throw new Error(response.message)
+      }
+    } catch (error) {
+      console.error('SMS login error:', error)
+      throw error
+    }
+  }
+  
+  // 微信登录
+  static async loginWithWechat(code: string, platform: string): Promise<UserInfo> {
+    try {
+      const response = await Request.post<LoginResponse>('/auth/login-wechat', {
+        code: code,
+        platform: platform
+      }, { needAuth: false })
+      
+      if (response.code === 0) {
+        Storage.setAccessToken(response.data.accessToken)
+        Storage.setRefreshToken(response.data.refreshToken)
+        Storage.setUserInfo(response.data.userInfo)
+        
+        return response.data.userInfo
+      } else {
+        throw new Error(response.message)
+      }
+    } catch (error) {
+      console.error('Wechat login error:', error)
+      throw error
+    }
+  }
+  
+  // Apple登录 (仅iOS)
+  static async loginWithApple(identityToken: string, authorizationCode: string): Promise<UserInfo> {
+    try {
+      const response = await Request.post<LoginResponse>('/auth/login-apple', {
+        identityToken: identityToken,
+        authorizationCode: authorizationCode
+      }, { needAuth: false })
+      
+      if (response.code === 0) {
+        Storage.setAccessToken(response.data.accessToken)
+        Storage.setRefreshToken(response.data.refreshToken)
+        Storage.setUserInfo(response.data.userInfo)
+        
+        return response.data.userInfo
+      } else {
+        throw new Error(response.message)
+      }
+    } catch (error) {
+      console.error('Apple login error:', error)
+      throw error
+    }
+  }
+  
+  // 发送短信验证码
+  static async sendSmsCode(phone: string, captcha?: string): Promise<void> {
+    try {
+      const response = await Request.post('/auth/send-code', {
+        phone: phone,
+        captcha: captcha
+      }, { needAuth: false })
+      
+      if (response.code !== 0) {
+        throw new Error(response.message)
+      }
+    } catch (error) {
+      console.error('Send SMS code error:', error)
+      throw error
+    }
+  }
+  
+  // 登出
+  static async logout(): Promise<void> {
+    try {
+      await Request.post('/auth/logout')
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      // 清除本地数据
+      Storage.clearUserData()
+      // 跳转到登录页
+      uni.reLaunch({
+        url: '/pages/auth/login/login'
+      })
+    }
+  }
+  
+  // 刷新用户信息
+  static async refreshUserInfo(): Promise<UserInfo | null> {
+    try {
+      const response = await Request.get<UserInfo>('/me')
+      
+      if (response.code === 0) {
+        Storage.setUserInfo(response.data)
+        return response.data
+      }
+      return null
+    } catch (error) {
+      console.error('Refresh user info error:', error)
+      return null
+    }
+  }
+  
+  // 更新用户资料
+  static async updateProfile(profileData: Partial<UserInfo>): Promise<UserInfo | null> {
+    try {
+      const response = await Request.patch<UserInfo>('/me/profile', profileData)
+      
+      if (response.code === 0) {
+        Storage.setUserInfo(response.data)
+        return response.data
+      }
+      throw new Error(response.message)
+    } catch (error) {
+      console.error('Update profile error:', error)
+      throw error
+    }
+  }
+  
+  // 检查是否需要完善资料
+  static needCompleteProfile(): boolean {
+    const userInfo = this.getCurrentUser()
+    if (!userInfo) {
+      return true
+    }
+    
+    // 检查必填字段
+    return !userInfo.nickname || !userInfo.avatar || userInfo.gender === 0 || userInfo.interests.length < 3
+  }
+  
+  // 验证手机号格式
+  static validatePhone(phone: string): boolean {
+    const phoneRegex = /^1[3-9]\d{9}$/
+    return phoneRegex.test(phone)
+  }
+  
+  // 生成设备ID
+  static generateDeviceId(): string {
+    let deviceId = Storage.getDeviceId()
+    if (!deviceId) {
+      // 生成唯一设备ID
+      deviceId = 'device_' + Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9)
+      Storage.setDeviceId(deviceId)
+    }
+    return deviceId
+  }
+}

@@ -1,17 +1,92 @@
 {
-	"pages": [ //pages数组中第一项表示应用启动页，参考：https://doc.dcloud.net.cn/uni-app-x/collocation/pagesjson.html
+	"pages": [
 		{
 			"path": "pages/index/index",
 			"style": {
-				"navigationBarTitleText": "uni-app x"
+				"navigationBarTitleText": "广场",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/discover/discover",
+			"style": {
+				"navigationBarTitleText": "发现"
+			}
+		},
+		{
+			"path": "pages/publish/publish",
+			"style": {
+				"navigationBarTitleText": "发布动态"
+			}
+		},
+		{
+			"path": "pages/message/message",
+			"style": {
+				"navigationBarTitleText": "消息"
+			}
+		},
+		{
+			"path": "pages/profile/profile",
+			"style": {
+				"navigationBarTitleText": "我的"
+			}
+		},
+		{
+			"path": "pages/auth/login/login",
+			"style": {
+				"navigationBarTitleText": "登录"
+			}
+		},
+		{
+			"path": "pages/post/detail/detail",
+			"style": {
+				"navigationBarTitleText": "动态详情"
 			}
 		}
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "uni-app x",
-		"navigationBarBackgroundColor": "#F8F8F8",
-		"backgroundColor": "#F8F8F8"
+		"navigationBarTitleText": "交友社区",
+		"navigationBarBackgroundColor": "#FFFFFF",
+		"backgroundColor": "#F5F5F5"
+	},
+	"tabBar": {
+		"color": "#999999",
+		"selectedColor": "#007AFF",
+		"backgroundColor": "#FFFFFF",
+		"borderStyle": "black",
+		"list": [
+			{
+				"pagePath": "pages/index/index",
+				"iconPath": "static/icons/home.png",
+				"selectedIconPath": "static/icons/home-active.png",
+				"text": "广场"
+			},
+			{
+				"pagePath": "pages/discover/discover",
+				"iconPath": "static/icons/discover.png",
+				"selectedIconPath": "static/icons/discover-active.png",
+				"text": "发现"
+			},
+			{
+				"pagePath": "pages/publish/publish",
+				"iconPath": "static/icons/publish.png",
+				"selectedIconPath": "static/icons/publish-active.png",
+				"text": "发布"
+			},
+			{
+				"pagePath": "pages/message/message",
+				"iconPath": "static/icons/message.png",
+				"selectedIconPath": "static/icons/message-active.png",
+				"text": "消息"
+			},
+			{
+				"pagePath": "pages/profile/profile",
+				"iconPath": "static/icons/profile.png",
+				"selectedIconPath": "static/icons/profile-active.png",
+				"text": "我的"
+			}
+		]
 	},
 	"uniIdRouter": {}
 }

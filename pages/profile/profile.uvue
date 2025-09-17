@@ -1,0 +1,324 @@
+<template>
+  <view class="profile-page">
+    <scroll-view class="content" scroll-y="true">
+      <!-- 用户信息卡片 -->
+      <view class="user-card">
+        <view class="user-header">
+          <image class="avatar" :src="userInfo.avatar" @tap="editAvatar" />
+          <view class="user-info">
+            <text class="nickname">{{ userInfo.nickname }}</text>
+            <text class="signature">{{ userInfo.signature || '这个人很懒，什么都没留下' }}</text>
+            <view class="stats">
+              <view class="stat-item">
+                <text class="stat-number">{{ userInfo.postCount || 0 }}</text>
+                <text class="stat-label">动态</text>
+              </view>
+              <view class="stat-item">
+                <text class="stat-number">{{ userInfo.followingCount || 0 }}</text>
+                <text class="stat-label">关注</text>
+              </view>
+              <view class="stat-item">
+                <text class="stat-number">{{ userInfo.followerCount || 0 }}</text>
+                <text class="stat-label">粉丝</text>
+              </view>
+            </view>
+          </view>
+        </view>
+        
+        <view class="user-actions">
+          <view class="action-btn" @tap="editProfile">
+            <text class="action-text">编辑资料</text>
+          </view>
+        </view>
+        
+        <!-- 兴趣标签 -->
+        <view class="interests" v-if="userInfo.interests && userInfo.interests.length > 0">
+          <text class="interest-tag" v-for="interest in userInfo.interests" :key="interest">
+            {{ interest }}
+          </text>
+        </view>
+      </view>
+      
+      <!-- 功能菜单 -->
+      <view class="menu-section">
+        <view class="menu-item" @tap="goToPage('/pages/profile/posts/posts')">
+          <text class="menu-icon">📝</text>
+          <text class="menu-text">我的动态</text>
+          <text class="menu-arrow">></text>
+        </view>
+        
+        <view class="menu-item" @tap="goToPage('/pages/profile/likes/likes')">
+          <text class="menu-icon">❤️</text>
+          <text class="menu-text">我的点赞</text>
+          <text class="menu-arrow">></text>
+        </view>
+        
+        <view class="menu-item" @tap="goToPage('/pages/profile/follows/follows')">
+          <text class="menu-icon">👥</text>
+          <text class="menu-text">我的关注</text>
+          <text class="menu-arrow">></text>
+        </view>
+        
+        <view class="menu-item" @tap="goToPage('/pages/profile/visitors/visitors')">
+          <text class="menu-icon">👀</text>
+          <text class="menu-text">访客记录</text>
+          <text class="menu-arrow">></text>
+        </view>
+      </view>
+      
+      <!-- 设置菜单 -->
+      <view class="menu-section">
+        <view class="menu-item" @tap="goToPage('/pages/settings/privacy/privacy')">
+          <text class="menu-icon">🔒</text>
+          <text class="menu-text">隐私设置</text>
+          <text class="menu-arrow">></text>
+        </view>
+        
+        <view class="menu-item" @tap="goToPage('/pages/settings/notification/notification')">
+          <text class="menu-icon">🔔</text>
+          <text class="menu-text">通知设置</text>
+          <text class="menu-arrow">></text>
+        </view>
+        
+        <view class="menu-item" @tap="goToPage('/pages/settings/about/about')">
+          <text class="menu-icon">ℹ️</text>
+          <text class="menu-text">关于我们</text>
+          <text class="menu-arrow">></text>
+        </view>
+        
+        <view class="menu-item" @tap="showLogoutConfirm">
+          <text class="menu-icon">🚪</text>
+          <text class="menu-text">退出登录</text>
+          <text class="menu-arrow">></text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { ref, onMounted } from 'vue'
+import { Auth } from '../../utils/auth.uts'
+
+// 用户信息
+const userInfo = ref({
+  uid: 'user123',
+  nickname: '我的昵称',
+  avatar: '/static/default-avatar.png',
+  signature: '这是我的个性签名',
+  interests: ['摄影', '旅行', '美食', '音乐'],
+  postCount: 26,
+  followingCount: 128,
+  followerCount: 89
+})
+
+onMounted(() => {
+  loadUserInfo()
+})
+
+// 加载用户信息
+function loadUserInfo() {
+  const currentUser = Auth.getCurrentUser()
+  if (currentUser) {
+    userInfo.value = { ...userInfo.value, ...currentUser }
+  }
+}
+
+// 编辑头像
+function editAvatar() {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['camera', 'album'],
+    success: (res) => {
+      // TODO: 上传头像并更新
+      console.log('选择头像:', res.tempFilePaths[0])
+    }
+  })
+}
+
+// 编辑资料
+function editProfile() {
+  uni.navigateTo({
+    url: '/pages/profile/edit/edit'
+  })
+}
+
+// 跳转到指定页面
+function goToPage(url: string) {
+  uni.navigateTo({
+    url: url
+  })
+}
+
+// 显示退出登录确认
+function showLogoutConfirm() {
+  uni.showModal({
+    title: '确认退出',
+    content: '确定要退出登录吗？',
+    success: (res) => {
+      if (res.confirm) {
+        logout()
+      }
+    }
+  })
+}
+
+// 退出登录
+async function logout() {
+  try {
+    uni.showLoading({
+      title: '退出中...'
+    })
+    
+    await Auth.logout()
+    
+    uni.hideLoading()
+    uni.showToast({
+      title: '已退出登录',
+      icon: 'success'
+    })
+  } catch (error) {
+    uni.hideLoading()
+    console.error('退出登录失败:', error)
+  }
+}
+</script>
+
+<style scoped>
+.profile-page {
+  flex: 1;
+  background-color: #f5f5f5;
+}
+
+.content {
+  flex: 1;
+}
+
+.user-card {
+  background-color: #ffffff;
+  padding: 30px 20px 20px;
+  margin-bottom: 10px;
+}
+
+.user-header {
+  flex-direction: row;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 40px;
+}
+
+.user-info {
+  flex: 1;
+  gap: 8px;
+}
+
+.nickname {
+  font-size: 20px;
+  font-weight: bold;
+  color: #333333;
+}
+
+.signature {
+  font-size: 14px;
+  color: #666666;
+  lines: 2;
+}
+
+.stats {
+  flex-direction: row;
+  gap: 20px;
+  margin-top: 16px;
+}
+
+.stat-item {
+  align-items: center;
+  gap: 4px;
+}
+
+.stat-number {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333333;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #999999;
+}
+
+.user-actions {
+  flex-direction: row;
+  margin-bottom: 16px;
+}
+
+.action-btn {
+  flex: 1;
+  background-color: #007AFF;
+  border-radius: 20px;
+  padding: 10px 0;
+  align-items: center;
+}
+
+.action-text {
+  font-size: 14px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.interests {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.interest-tag {
+  padding: 6px 12px;
+  background-color: #f0f0f0;
+  border-radius: 16px;
+  font-size: 12px;
+  color: #666666;
+}
+
+.menu-section {
+  background-color: #ffffff;
+  margin-bottom: 10px;
+}
+
+.menu-item {
+  flex-direction: row;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f5f5f5;
+  gap: 12px;
+}
+
+.menu-item:active {
+  background-color: #f8f8f8;
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-icon {
+  font-size: 20px;
+  width: 24px;
+}
+
+.menu-text {
+  flex: 1;
+  font-size: 16px;
+  color: #333333;
+}
+
+.menu-arrow {
+  font-size: 16px;
+  color: #cccccc;
+}
+</style>

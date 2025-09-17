@@ -1,0 +1,231 @@
+// 网络请求封装
+
+import { API_BASE_URL, ERROR_CODES } from './constants.uts'
+import { Storage } from './storage.uts'
+
+// 请求配置接口
+interface RequestConfig {
+  url: string
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
+  data?: any
+  header?: any
+  needAuth?: boolean
+  timeout?: number
+}
+
+// 响应接口
+interface ApiResponse<T = any> {
+  code: number
+  message: string
+  data: T
+}
+
+export class Request {
+  
+  // 默认配置
+  private static defaultConfig = {
+    timeout: 10000,
+    needAuth: true
+  }
+  
+  // 发起请求
+  static async request<T = any>(config: RequestConfig): Promise<ApiResponse<T>> {
+    const {
+      url,
+      method = 'GET',
+      data,
+      header = {},
+      needAuth = true,
+      timeout = this.defaultConfig.timeout
+    } = config
+    
+    // 构建完整URL
+    const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`
+    
+    // 构建请求头
+    const requestHeader: any = {
+      'Content-Type': 'application/json',
+      ...header
+    }
+    
+    // 添加认证头
+    if (needAuth) {
+      const token = Storage.getAccessToken()
+      if (token) {
+        requestHeader['Authorization'] = `Bearer ${token}`
+      }
+    }
+    
+    try {
+      const response = await uni.request({
+        url: fullUrl,
+        method: method,
+        data: data,
+        header: requestHeader,
+        timeout: timeout
+      })
+      
+      const result = response.data as ApiResponse<T>
+      
+      // 处理认证失效
+      if (result.code === ERROR_CODES.UNAUTHORIZED) {
+        await this.handleAuthError()
+        throw new Error('认证失效，请重新登录')
+      }
+      
+      // 处理业务错误
+      if (result.code !== ERROR_CODES.SUCCESS) {
+        throw new Error(result.message || '请求失败')
+      }
+      
+      return result
+      
+    } catch (error) {
+      console.error('Request error:', error)
+      throw error
+    }
+  }
+  
+  // GET请求
+  static get<T = any>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<ApiResponse<T>> {
+    return this.request<T>({
+      url,
+      method: 'GET',
+      data,
+      ...config
+    })
+  }
+  
+  // POST请求
+  static post<T = any>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<ApiResponse<T>> {
+    return this.request<T>({
+      url,
+      method: 'POST',
+      data,
+      ...config
+    })
+  }
+  
+  // PUT请求
+  static put<T = any>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<ApiResponse<T>> {
+    return this.request<T>({
+      url,
+      method: 'PUT',
+      data,
+      ...config
+    })
+  }
+  
+  // DELETE请求
+  static delete<T = any>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<ApiResponse<T>> {
+    return this.request<T>({
+      url,
+      method: 'DELETE',
+      data,
+      ...config
+    })
+  }
+  
+  // PATCH请求
+  static patch<T = any>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<ApiResponse<T>> {
+    return this.request<T>({
+      url,
+      method: 'PATCH',
+      data,
+      ...config
+    })
+  }
+  
+  // 文件上传
+  static uploadFile(config: {
+    url: string
+    filePath: string
+    name: string
+    formData?: any
+    header?: any
+  }): Promise<any> {
+    const { url, filePath, name, formData, header = {} } = config
+    
+    // 添加认证头
+    const token = Storage.getAccessToken()
+    if (token) {
+      header['Authorization'] = `Bearer ${token}`
+    }
+    
+    const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`
+    
+    return new Promise((resolve, reject) => {
+      uni.uploadFile({
+        url: fullUrl,
+        filePath: filePath,
+        name: name,
+        formData: formData,
+        header: header,
+        success: (response) => {
+          try {
+            const result = JSON.parse(response.data)
+            if (result.code === ERROR_CODES.SUCCESS) {
+              resolve(result)
+            } else {
+              reject(new Error(result.message || '上传失败'))
+            }
+          } catch (error) {
+            reject(error)
+          }
+        },
+        fail: (error) => {
+          reject(error)
+        }
+      })
+    })
+  }
+  
+  // 处理认证错误
+  private static async handleAuthError(): Promise<void> {
+    try {
+      // 尝试刷新token
+      const refreshToken = Storage.getRefreshToken()
+      if (refreshToken) {
+        const response = await this.post('/auth/refresh', {
+          refreshToken: refreshToken
+        }, { needAuth: false })
+        
+        if (response.code === ERROR_CODES.SUCCESS) {
+          Storage.setAccessToken(response.data.accessToken)
+          Storage.setRefreshToken(response.data.refreshToken)
+          return
+        }
+      }
+    } catch (error) {
+      console.error('Refresh token error:', error)
+    }
+    
+    // 清除用户数据并跳转到登录页
+    Storage.clearUserData()
+    uni.reLaunch({
+      url: '/pages/auth/login/login'
+    })
+  }
+  
+  // 显示错误提示
+  static showError(message: string): void {
+    uni.showToast({
+      title: message,
+      icon: 'none',
+      duration: 2000
+    })
+  }
+  
+  // 显示加载中
+  static showLoading(title: string = '加载中...'): void {
+    uni.showLoading({
+      title: title,
+      mask: true
+    })
+  }
+  
+  // 隐藏加载中
+  static hideLoading(): void {
+    uni.hideLoading()
+  }
+}

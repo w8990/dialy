@@ -1,0 +1,205 @@
+<template>
+  <view class="discover-page">
+    <view class="header">
+      <text class="title">发现</text>
+    </view>
+    
+    <scroll-view class="content" scroll-y="true">
+      <!-- 热门话题 -->
+      <view class="section">
+        <view class="section-header">
+          <text class="section-title">热门话题</text>
+          <text class="more-btn">更多</text>
+        </view>
+        <view class="topic-list">
+          <view class="topic-item" v-for="topic in hotTopics" :key="topic.id">
+            <text class="topic-name">#{{ topic.name }}</text>
+            <text class="topic-count">{{ topic.count }}人参与</text>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 附近的人 -->
+      <view class="section">
+        <view class="section-header">
+          <text class="section-title">附近的人</text>
+          <text class="more-btn">更多</text>
+        </view>
+        <view class="nearby-list">
+          <view class="nearby-item" v-for="user in nearbyUsers" :key="user.uid">
+            <image class="avatar" :src="user.avatar" />
+            <view class="user-info">
+              <text class="nickname">{{ user.nickname }}</text>
+              <text class="distance">{{ user.distance }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 兴趣推荐 -->
+      <view class="section">
+        <view class="section-header">
+          <text class="section-title">兴趣推荐</text>
+        </view>
+        <view class="interest-list">
+          <view class="interest-item" v-for="interest in interests" :key="interest">
+            <text class="interest-name">{{ interest }}</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { ref, onMounted } from 'vue'
+
+// 热门话题数据
+const hotTopics = ref([
+  { id: 1, name: '今日分享', count: 1234 },
+  { id: 2, name: '美食推荐', count: 856 },
+  { id: 3, name: '旅行日记', count: 672 },
+])
+
+// 附近的人数据
+const nearbyUsers = ref([
+  { uid: '1', nickname: '小明', avatar: '/static/default-avatar.png', distance: '500m' },
+  { uid: '2', nickname: '小红', avatar: '/static/default-avatar.png', distance: '1.2km' },
+  { uid: '3', nickname: '小李', avatar: '/static/default-avatar.png', distance: '2km' },
+])
+
+// 兴趣标签
+const interests = ref([
+  '摄影', '旅行', '美食', '音乐', '运动', '读书', '电影', '游戏'
+])
+
+onMounted(() => {
+  loadDiscoverData()
+})
+
+// 加载发现页数据
+function loadDiscoverData() {
+  // TODO: 调用API获取数据
+  console.log('Loading discover data...')
+}
+</script>
+
+<style scoped>
+.discover-page {
+  flex: 1;
+  background-color: #f5f5f5;
+}
+
+.header {
+  background-color: #ffffff;
+  padding: 44px 20px 20px;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333333;
+}
+
+.content {
+  flex: 1;
+  padding: 20px;
+}
+
+.section {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.section-header {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333333;
+}
+
+.more-btn {
+  font-size: 14px;
+  color: #007AFF;
+}
+
+.topic-list {
+  gap: 10px;
+}
+
+.topic-item {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background-color: #f8f8f8;
+  border-radius: 8px;
+}
+
+.topic-name {
+  font-size: 16px;
+  color: #333333;
+}
+
+.topic-count {
+  font-size: 12px;
+  color: #999999;
+}
+
+.nearby-list {
+  gap: 15px;
+}
+
+.nearby-item {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 25px;
+}
+
+.user-info {
+  flex: 1;
+}
+
+.nickname {
+  font-size: 16px;
+  color: #333333;
+  margin-bottom: 4px;
+}
+
+.distance {
+  font-size: 12px;
+  color: #999999;
+}
+
+.interest-list {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.interest-item {
+  padding: 8px 16px;
+  background-color: #007AFF;
+  border-radius: 20px;
+}
+
+.interest-name {
+  font-size: 14px;
+  color: #ffffff;
+}
+</style>

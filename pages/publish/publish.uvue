@@ -1,0 +1,444 @@
+<template>
+  <view class="publish-page">
+    <!-- 导航栏 -->
+    <view class="navbar">
+      <text class="nav-btn" @tap="goBack">取消</text>
+      <text class="title">发布动态</text>
+      <text class="nav-btn primary" @tap="publishPost">发布</text>
+    </view>
+    
+    <scroll-view class="content" scroll-y="true">
+      <!-- 内容输入区 -->
+      <view class="input-section">
+        <textarea 
+          class="content-input" 
+          v-model="postContent"
+          placeholder="分享你的生活..." 
+          :maxlength="maxLength"
+          auto-height
+        />
+        <view class="char-count">{{ postContent.length }}/{{ maxLength }}</view>
+      </view>
+      
+      <!-- 媒体选择区 -->
+      <view class="media-section">
+        <view class="media-grid">
+          <view 
+            class="media-item" 
+            v-for="(media, index) in mediaList" 
+            :key="index"
+          >
+            <image v-if="media.type === 'image'" :src="media.url" class="media-preview" />
+            <video v-if="media.type === 'video'" :src="media.url" class="media-preview" controls />
+            <view class="media-remove" @tap="removeMedia(index)">×</view>
+          </view>
+          
+          <!-- 添加媒体按钮 -->
+          <view class="add-media" @tap="showMediaOptions" v-if="mediaList.length < 9">
+            <text class="add-icon">+</text>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 功能选项 -->
+      <view class="options-section">
+        <!-- 话题选择 -->
+        <view class="option-item" @tap="showTopicSelector">
+          <text class="option-icon">#</text>
+          <text class="option-text">添加话题</text>
+          <view class="selected-topics" v-if="selectedTopics.length > 0">
+            <text class="topic-tag" v-for="topic in selectedTopics" :key="topic">#{{ topic }}</text>
+          </view>
+        </view>
+        
+        <!-- 定位选择 -->
+        <view class="option-item" @tap="selectLocation">
+          <text class="option-icon">📍</text>
+          <text class="option-text">{{ selectedLocation || '添加位置' }}</text>
+        </view>
+        
+        <!-- 可见范围 -->
+        <view class="option-item" @tap="showVisibilityOptions">
+          <text class="option-icon">👁</text>
+          <text class="option-text">{{ visibilityText }}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { ref } from 'vue'
+import { Media } from '../../utils/media.uts'
+import { MEDIA_LIMITS, POST_VISIBILITY } from '../../utils/constants.uts'
+
+// 内容相关
+const postContent = ref('')
+const maxLength = MEDIA_LIMITS.POST_TEXT_MAX_LENGTH
+
+// 媒体文件
+const mediaList = ref<any[]>([])
+
+// 话题标签
+const selectedTopics = ref<string[]>([])
+
+// 位置信息
+const selectedLocation = ref('')
+
+// 可见范围
+const visibility = ref(POST_VISIBILITY.PUBLIC)
+const visibilityText = ref('公开')
+
+// 返回上一页
+function goBack() {
+  uni.navigateBack()
+}
+
+// 显示媒体选择选项
+function showMediaOptions() {
+  uni.showActionSheet({
+    itemList: ['拍照', '从相册选择', '录制视频', '录音'],
+    success: (res) => {
+      switch(res.tapIndex) {
+        case 0:
+          takePhoto()
+          break
+        case 1:
+          chooseFromAlbum()
+          break
+        case 2:
+          recordVideo()
+          break
+        case 3:
+          recordAudio()
+          break
+      }
+    }
+  })
+}
+
+// 拍照
+async function takePhoto() {
+  try {
+    const images = await Media.chooseImage(1)
+    if (images.length > 0) {
+      const mediaFile = await Media.uploadFile(images[0], 'image')
+      mediaList.value.push(mediaFile)
+    }
+  } catch (error) {
+    uni.showToast({
+      title: '拍照失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 从相册选择
+async function chooseFromAlbum() {
+  try {
+    const remainingCount = 9 - mediaList.value.length
+    const images = await Media.chooseImage(remainingCount)
+    
+    if (images.length > 0) {
+      const mediaFiles = await Media.uploadImages(images)
+      mediaList.value.push(...mediaFiles)
+    }
+  } catch (error) {
+    uni.showToast({
+      title: '选择图片失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 录制视频
+async function recordVideo() {
+  try {
+    const videoPath = await Media.chooseVideo()
+    const mediaFile = await Media.uploadVideo(videoPath)
+    mediaList.value.push(mediaFile)
+  } catch (error) {
+    uni.showToast({
+      title: '录制视频失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 录音
+async function recordAudio() {
+  try {
+    uni.showToast({
+      title: '开始录音',
+      icon: 'none'
+    })
+    
+    await Media.startRecord()
+    
+    // 显示录音中的状态
+    setTimeout(async () => {
+      try {
+        const audioPath = await Media.stopRecord()
+        const mediaFile = await Media.uploadAudio(audioPath)
+        mediaList.value.push(mediaFile)
+        
+        uni.showToast({
+          title: '录音完成',
+          icon: 'success'
+        })
+      } catch (error) {
+        uni.showToast({
+          title: '录音失败',
+          icon: 'none'
+        })
+      }
+    }, 3000)
+    
+  } catch (error) {
+    uni.showToast({
+      title: '录音失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 移除媒体文件
+function removeMedia(index: number) {
+  mediaList.value.splice(index, 1)
+}
+
+// 显示话题选择器
+function showTopicSelector() {
+  // TODO: 实现话题选择器
+  uni.showToast({
+    title: '话题选择功能开发中',
+    icon: 'none'
+  })
+}
+
+// 选择位置
+function selectLocation() {
+  uni.chooseLocation({
+    success: (res) => {
+      selectedLocation.value = res.name || res.address
+    },
+    fail: (error) => {
+      console.error('选择位置失败:', error)
+    }
+  })
+}
+
+// 显示可见范围选项
+function showVisibilityOptions() {
+  const options = ['公开', '好友可见', '仅自己可见']
+  
+  uni.showActionSheet({
+    itemList: options,
+    success: (res) => {
+      visibility.value = res.tapIndex + 1
+      visibilityText.value = options[res.tapIndex]
+    }
+  })
+}
+
+// 发布动态
+async function publishPost() {
+  if (!postContent.value.trim() && mediaList.value.length === 0) {
+    uni.showToast({
+      title: '请输入内容或添加媒体',
+      icon: 'none'
+    })
+    return
+  }
+  
+  try {
+    uni.showLoading({
+      title: '发布中...'
+    })
+    
+    // TODO: 调用发布API
+    const postData = {
+      content: postContent.value,
+      media: mediaList.value,
+      topics: selectedTopics.value,
+      location: selectedLocation.value,
+      visibility: visibility.value
+    }
+    
+    console.log('发布数据:', postData)
+    
+    // 模拟发布成功
+    setTimeout(() => {
+      uni.hideLoading()
+      uni.showToast({
+        title: '发布成功',
+        icon: 'success'
+      })
+      
+      // 返回首页
+      uni.switchTab({
+        url: '/pages/index/index'
+      })
+    }, 2000)
+    
+  } catch (error) {
+    uni.hideLoading()
+    uni.showToast({
+      title: '发布失败',
+      icon: 'none'
+    })
+  }
+}
+</script>
+
+<style scoped>
+.publish-page {
+  flex: 1;
+  background-color: #f5f5f5;
+}
+
+.navbar {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 44px 20px 16px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.nav-btn {
+  font-size: 16px;
+  color: #666666;
+  padding: 8px 12px;
+}
+
+.nav-btn.primary {
+  color: #007AFF;
+  font-weight: bold;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333333;
+}
+
+.content {
+  flex: 1;
+}
+
+.input-section {
+  background-color: #ffffff;
+  padding: 20px;
+  margin-bottom: 10px;
+  position: relative;
+}
+
+.content-input {
+  width: 100%;
+  min-height: 120px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #333333;
+  background-color: transparent;
+  border: none;
+}
+
+.char-count {
+  position: absolute;
+  bottom: 10px;
+  right: 20px;
+  font-size: 12px;
+  color: #999999;
+}
+
+.media-section {
+  background-color: #ffffff;
+  padding: 20px;
+  margin-bottom: 10px;
+}
+
+.media-grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.media-item {
+  position: relative;
+  width: 100px;
+  height: 100px;
+}
+
+.media-preview {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+}
+
+.media-remove {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 20px;
+  height: 20px;
+  background-color: #ff4444;
+  border-radius: 10px;
+  color: #ffffff;
+  text-align: center;
+  line-height: 20px;
+  font-size: 14px;
+}
+
+.add-media {
+  width: 100px;
+  height: 100px;
+  background-color: #f8f8f8;
+  border: 2px dashed #cccccc;
+  border-radius: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.add-icon {
+  font-size: 24px;
+  color: #cccccc;
+}
+
+.options-section {
+  background-color: #ffffff;
+}
+
+.option-item {
+  flex-direction: row;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f5f5f5;
+  gap: 12px;
+}
+
+.option-icon {
+  font-size: 20px;
+  width: 24px;
+}
+
+.option-text {
+  flex: 1;
+  font-size: 16px;
+  color: #333333;
+}
+
+.selected-topics {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.topic-tag {
+  padding: 4px 8px;
+  background-color: #007AFF;
+  color: #ffffff;
+  font-size: 12px;
+  border-radius: 4px;
+}
+</style>

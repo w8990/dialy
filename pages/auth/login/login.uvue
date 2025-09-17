@@ -1,0 +1,525 @@
+<template>
+  <view class="login-page">
+    <view class="header">
+      <text class="title">欢迎来到交友社区</text>
+      <text class="subtitle">发现身边有趣的人和事</text>
+    </view>
+    
+    <view class="login-form">
+      <!-- 手机号登录 -->
+      <view class="login-section" v-if="loginType === 'phone'">
+        <view class="input-group">
+          <input 
+            class="input" 
+            type="number"
+            v-model="phoneNumber"
+            placeholder="请输入手机号"
+            :maxlength="11"
+          />
+        </view>
+        
+        <view class="input-group">
+          <input 
+            class="input code-input" 
+            type="number"
+            v-model="smsCode"
+            placeholder="请输入验证码"
+            :maxlength="6"
+          />
+          <view 
+            class="send-code-btn" 
+            :class="{ disabled: !canSendCode }"
+            @tap="sendSmsCode"
+          >
+            <text class="send-code-text">{{ sendCodeText }}</text>
+          </view>
+        </view>
+        
+        <view class="login-btn" @tap="loginWithPhone">
+          <text class="login-btn-text">登录</text>
+        </view>
+      </view>
+      
+      <!-- 第三方登录 -->
+      <view class="third-party-login">
+        <view class="divider">
+          <view class="divider-line"></view>
+          <text class="divider-text">其他登录方式</text>
+          <view class="divider-line"></view>
+        </view>
+        
+        <view class="third-party-buttons">
+          <view class="third-party-btn" @tap="loginWithWechat">
+            <text class="third-party-icon">💬</text>
+            <text class="third-party-text">微信登录</text>
+          </view>
+          
+          <!-- iOS 显示 Apple 登录 -->
+          <view class="third-party-btn" @tap="loginWithApple" v-if="isIOS">
+            <text class="third-party-icon">🍎</text>
+            <text class="third-party-text">Apple登录</text>
+          </view>
+          
+          <view class="third-party-btn" @tap="switchToPhone" v-if="loginType !== 'phone'">
+            <text class="third-party-icon">📱</text>
+            <text class="third-party-text">手机号登录</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 用户协议 -->
+    <view class="agreement">
+      <view class="agreement-check" @tap="toggleAgreement">
+        <text class="checkbox" :class="{ checked: agreedToTerms }">{{ agreedToTerms ? '✓' : '' }}</text>
+        <text class="agreement-text">
+          我已阅读并同意
+          <text class="link" @tap="showTerms">《用户协议》</text>
+          和
+          <text class="link" @tap="showPrivacy">《隐私政策》</text>
+        </text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { ref, computed, onMounted } from 'vue'
+import { Auth } from '../../../utils/auth.uts'
+
+// 登录类型
+const loginType = ref<'phone' | 'third-party'>('phone')
+
+// 手机号登录相关
+const phoneNumber = ref('')
+const smsCode = ref('')
+const countdown = ref(0)
+const agreedToTerms = ref(false)
+
+// 平台判断
+const isIOS = ref(false)
+
+// 发送验证码相关
+const canSendCode = computed(() => {
+  return Auth.validatePhone(phoneNumber.value) && countdown.value === 0
+})
+
+const sendCodeText = computed(() => {
+  return countdown.value > 0 ? `${countdown.value}s` : '获取验证码'
+})
+
+onMounted(() => {
+  // 检查平台
+  const systemInfo = uni.getSystemInfoSync()
+  isIOS.value = systemInfo.platform === 'ios'
+  
+  // 检查是否已登录
+  if (Auth.isLoggedIn()) {
+    navigateToMain()
+  }
+})
+
+// 发送短信验证码
+async function sendSmsCode() {
+  if (!canSendCode.value) {
+    return
+  }
+  
+  if (!Auth.validatePhone(phoneNumber.value)) {
+    uni.showToast({
+      title: '请输入正确的手机号',
+      icon: 'none'
+    })
+    return
+  }
+  
+  if (!agreedToTerms.value) {
+    uni.showToast({
+      title: '请先同意用户协议',
+      icon: 'none'
+    })
+    return
+  }
+  
+  try {
+    uni.showLoading({
+      title: '发送中...'
+    })
+    
+    await Auth.sendSmsCode(phoneNumber.value)
+    
+    uni.hideLoading()
+    uni.showToast({
+      title: '验证码已发送',
+      icon: 'success'
+    })
+    
+    // 开始倒计时
+    startCountdown()
+    
+  } catch (error: any) {
+    uni.hideLoading()
+    uni.showToast({
+      title: error.message || '发送失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 开始倒计时
+function startCountdown() {
+  countdown.value = 60
+  const timer = setInterval(() => {
+    countdown.value--
+    if (countdown.value <= 0) {
+      clearInterval(timer)
+    }
+  }, 1000)
+}
+
+// 手机号登录
+async function loginWithPhone() {
+  if (!Auth.validatePhone(phoneNumber.value)) {
+    uni.showToast({
+      title: '请输入正确的手机号',
+      icon: 'none'
+    })
+    return
+  }
+  
+  if (!smsCode.value || smsCode.value.length !== 6) {
+    uni.showToast({
+      title: '请输入6位验证码',
+      icon: 'none'
+    })
+    return
+  }
+  
+  if (!agreedToTerms.value) {
+    uni.showToast({
+      title: '请先同意用户协议',
+      icon: 'none'
+    })
+    return
+  }
+  
+  try {
+    uni.showLoading({
+      title: '登录中...'
+    })
+    
+    const userInfo = await Auth.loginWithSms(phoneNumber.value, smsCode.value)
+    
+    uni.hideLoading()
+    uni.showToast({
+      title: '登录成功',
+      icon: 'success'
+    })
+    
+    // 检查是否需要完善资料
+    if (Auth.needCompleteProfile()) {
+      navigateToCompleteProfile()
+    } else {
+      navigateToMain()
+    }
+    
+  } catch (error: any) {
+    uni.hideLoading()
+    uni.showToast({
+      title: error.message || '登录失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 微信登录
+async function loginWithWechat() {
+  if (!agreedToTerms.value) {
+    uni.showToast({
+      title: '请先同意用户协议',
+      icon: 'none'
+    })
+    return
+  }
+  
+  try {
+    uni.showLoading({
+      title: '登录中...'
+    })
+    
+    // 获取微信授权码
+    uni.login({
+      provider: 'weixin',
+      success: async (loginRes) => {
+        try {
+          const userInfo = await Auth.loginWithWechat(loginRes.code, 'app')
+          
+          uni.hideLoading()
+          uni.showToast({
+            title: '登录成功',
+            icon: 'success'
+          })
+          
+          if (Auth.needCompleteProfile()) {
+            navigateToCompleteProfile()
+          } else {
+            navigateToMain()
+          }
+          
+        } catch (error: any) {
+          uni.hideLoading()
+          uni.showToast({
+            title: error.message || '登录失败',
+            icon: 'none'
+          })
+        }
+      },
+      fail: () => {
+        uni.hideLoading()
+        uni.showToast({
+          title: '微信授权失败',
+          icon: 'none'
+        })
+      }
+    })
+    
+  } catch (error) {
+    uni.hideLoading()
+    uni.showToast({
+      title: '登录失败',
+      icon: 'none'
+    })
+  }
+}
+
+// Apple 登录 (仅iOS)
+function loginWithApple() {
+  if (!isIOS.value) {
+    return
+  }
+  
+  if (!agreedToTerms.value) {
+    uni.showToast({
+      title: '请先同意用户协议',
+      icon: 'none'
+    })
+    return
+  }
+  
+  // TODO: 实现 Apple 登录
+  uni.showToast({
+    title: 'Apple登录功能开发中',
+    icon: 'none'
+  })
+}
+
+// 切换到手机号登录
+function switchToPhone() {
+  loginType.value = 'phone'
+}
+
+// 切换协议同意状态
+function toggleAgreement() {
+  agreedToTerms.value = !agreedToTerms.value
+}
+
+// 显示用户协议
+function showTerms() {
+  uni.navigateTo({
+    url: '/pages/legal/terms/terms'
+  })
+}
+
+// 显示隐私政策
+function showPrivacy() {
+  uni.navigateTo({
+    url: '/pages/legal/privacy/privacy'
+  })
+}
+
+// 导航到完善资料页面
+function navigateToCompleteProfile() {
+  uni.redirectTo({
+    url: '/pages/auth/complete/complete'
+  })
+}
+
+// 导航到主页
+function navigateToMain() {
+  uni.switchTab({
+    url: '/pages/index/index'
+  })
+}
+</script>
+
+<style scoped>
+.login-page {
+  flex: 1;
+  background-color: #ffffff;
+  padding: 40px 30px 30px;
+}
+
+.header {
+  align-items: center;
+  margin-bottom: 60px;
+  margin-top: 80px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333333;
+  margin-bottom: 12px;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: #666666;
+}
+
+.login-form {
+  margin-bottom: 40px;
+}
+
+.login-section {
+  gap: 20px;
+}
+
+.input-group {
+  flex-direction: row;
+  align-items: center;
+  border-bottom: 1px solid #eeeeee;
+  padding-bottom: 12px;
+}
+
+.input {
+  flex: 1;
+  font-size: 16px;
+  color: #333333;
+  background-color: transparent;
+  border: none;
+  padding: 12px 0;
+}
+
+.code-input {
+  margin-right: 12px;
+}
+
+.send-code-btn {
+  padding: 8px 16px;
+  background-color: #007AFF;
+  border-radius: 20px;
+}
+
+.send-code-btn.disabled {
+  background-color: #cccccc;
+}
+
+.send-code-text {
+  font-size: 14px;
+  color: #ffffff;
+}
+
+.login-btn {
+  background-color: #007AFF;
+  border-radius: 25px;
+  padding: 16px 0;
+  align-items: center;
+  margin-top: 30px;
+}
+
+.login-btn-text {
+  font-size: 16px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.third-party-login {
+  margin-top: 40px;
+}
+
+.divider {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.divider-line {
+  flex: 1;
+  height: 1px;
+  background-color: #eeeeee;
+}
+
+.divider-text {
+  font-size: 14px;
+  color: #999999;
+}
+
+.third-party-buttons {
+  gap: 16px;
+}
+
+.third-party-btn {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 0;
+  border: 1px solid #eeeeee;
+  border-radius: 25px;
+  gap: 8px;
+}
+
+.third-party-btn:active {
+  background-color: #f8f8f8;
+}
+
+.third-party-icon {
+  font-size: 20px;
+}
+
+.third-party-text {
+  font-size: 16px;
+  color: #333333;
+}
+
+.agreement {
+  position: absolute;
+  bottom: 30px;
+  left: 30px;
+  right: 30px;
+}
+
+.agreement-check {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1px solid #cccccc;
+  border-radius: 3px;
+  text-align: center;
+  line-height: 14px;
+  font-size: 12px;
+  color: #ffffff;
+}
+
+.checkbox.checked {
+  background-color: #007AFF;
+  border-color: #007AFF;
+}
+
+.agreement-text {
+  flex: 1;
+  font-size: 12px;
+  color: #999999;
+  line-height: 1.4;
+}
+
+.link {
+  color: #007AFF;
+}
+</style>

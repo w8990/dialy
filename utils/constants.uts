@@ -1,0 +1,91 @@
+// 应用常量定义
+
+// API 基础配置
+export const API_BASE_URL = 'https://your-api-domain.com/api'
+
+// 存储键名
+export const STORAGE_KEYS = {
+  ACCESS_TOKEN: 'access_token',
+  REFRESH_TOKEN: 'refresh_token',
+  USER_INFO: 'user_info',
+  DEVICE_ID: 'device_id'
+}
+
+// 用户性别
+export const GENDER = {
+  UNKNOWN: 0,
+  MALE: 1,
+  FEMALE: 2
+}
+
+// 动态可见范围
+export const POST_VISIBILITY = {
+  PUBLIC: 1,
+  FRIENDS_ONLY: 2,
+  PRIVATE: 3
+}
+
+// 动态状态
+export const POST_STATUS = {
+  PUBLISHED: 1,
+  REVIEWING: 2,
+  DELETED: 3
+}
+
+// 消息类型
+export const MESSAGE_TYPE = {
+  TEXT: 1,
+  IMAGE: 2,
+  AUDIO: 3,
+  EMOJI: 4
+}
+
+// 通知类型
+export const NOTIFICATION_TYPE = {
+  LIKE: 1,
+  COMMENT: 2,
+  FOLLOW: 3,
+  MESSAGE: 4,
+  SYSTEM: 5
+}
+
+// 媒体类型
+export const MEDIA_TYPE = {
+  IMAGE: 'image',
+  VIDEO: 'video',
+  AUDIO: 'audio'
+}
+
+// 错误码
+export const ERROR_CODES = {
+  SUCCESS: 0,
+  INVALID_PARAMS: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  RATE_LIMIT: 429,
+  SERVER_ERROR: 500
+}
+
+// 分页配置
+export const PAGE_CONFIG = {
+  DEFAULT_SIZE: 20,
+  MAX_SIZE: 100
+}
+
+// 媒体限制
+export const MEDIA_LIMITS = {
+  IMAGE_MAX_SIZE: 5 * 1024 * 1024, // 5MB
+  VIDEO_MAX_SIZE: 100 * 1024 * 1024, // 100MB
+  VIDEO_MAX_DURATION: 60, // 60秒
+  AUDIO_MAX_DURATION: 60, // 60秒
+  POST_TEXT_MAX_LENGTH: 1000,
+  COMMENT_TEXT_MAX_LENGTH: 500
+}
+
+// 每日限制
+export const DAILY_LIMITS = {
+  POST_COUNT: 20,
+  COMMENT_COUNT: 200,
+  LIKE_COUNT: 2000
+}
