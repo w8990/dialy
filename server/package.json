@@ -1,0 +1,39 @@
+{
+  "name": "dialy-server",
+  "version": "1.0.0",
+  "description": "交友社区后端服务",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "init-db": "node src/scripts/initDatabase.js",
+    "seed": "node src/scripts/seedData.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mysql2": "^3.6.0",
+    "sequelize": "^6.32.1",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "compression": "^1.7.4",
+    "express-rate-limit": "^6.8.1",
+    "joi": "^17.9.2",
+    "sharp": "^0.32.4",
+    "uuid": "^9.0.0",
+    "moment": "^2.29.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "social",
+    "api",
+    "nodejs",
+    "express"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
